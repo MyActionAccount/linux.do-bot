@@ -14,6 +14,8 @@ from configparser import ConfigParser
 from tabulate import tabulate
 from playwright.sync_api import sync_playwright, TimeoutError
 from config import reply_generator
+from telegram.ext import Application
+from telegram import Bot
 
 # I stumbled upon this site thinking it might be a promising open-source Linux community. After exploring a bit, it seems like it's still in its early stages and doesn't quite live up to the 'community' label yet. There’s no shortage of overconfident individuals here, but it feels more like an amateurish forum rather than a serious place for Linux enthusiasts.
 
@@ -91,10 +93,6 @@ if USE_TELEGRAM and not TELEGRAM_CHAT_ID:
 if missing_configs:
     logging.error(f"缺少必要配置: {', '.join(missing_configs)},请在环境变量或配置文件中设置。")
     exit(1)
-
-async def send_telegram_message(message):
-    bot = telegram.Bot(TELEGRAM_BOT_TOKEN)
-    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message, parse_mode='HTML')
     
 class NotificationManager:
     def __init__(self, use_telegram, bot_token, chat_id):
@@ -105,10 +103,14 @@ class NotificationManager:
     def send_message(self, content, summary):
         if self.use_telegram:
             try:
-                asyncio.get_event_loop().run_until_complete(send_telegram_message(content))
-                logging.info("Telegram消息发送成功")
+                asyncio.run(self.async_send_message(content))
+                logging.info(f"Telegram消息发送成功: {summary}")
             except Exception as e:
-                logging.error(f"发送Telegram消息时出错: {e}")
+                logging.error(f"发送Telegram消息时出错: {str(e)}", exc_info=True)
+
+    async def async_send_message(self, content):
+        bot = telegram.Bot(self.bot_token)
+        await bot.send_message(chat_id=self.chat_id, text=content, parse_mode='HTML')
 
 class LinuxDoBrowser:
     def __init__(self) -> None:
@@ -121,6 +123,7 @@ class LinuxDoBrowser:
         logging.info(f"导航到 {HOME_URL}...")
         self.page.goto(HOME_URL)
         logging.info("初始化完成。")
+        self.notification_manager = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
 
     def load_messages(self, filename):
         """从指定的文件加载消息并返回消息列表。"""
@@ -148,9 +151,15 @@ class LinuxDoBrowser:
             user_ele = self.page.query_selector("#current-user")
             if not user_ele:
                 logging.error("登录失败")
+                # 发送Telegram消息
+                login_message = f"Linux.do 登录失败\n用户名: {USERNAME}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                self.notification_manager.send_message(login_message, "Linux.do 登录通知")
                 return False
             else:
                 logging.info("登录成功")
+                # 发送Telegram消息
+                login_message = f"Linux.do 登录成功\n用户名: {USERNAME}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+                self.notification_manager.send_message(login_message, "Linux.do 登录通知")
                 return True
         except TimeoutError:
             logging.error("登录失败：页面加载超时或元素未找到")
@@ -310,8 +319,7 @@ class LinuxDoBrowser:
                     f"{html_log_content}"
                 )
                 
-                telegram_notifier = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-                telegram_notifier.send_message(content, summary)
+                self.notification_manager.send_message(content, summary)
 
     def print_connect_info(self):
         try:
