@@ -101,16 +101,23 @@ class NotificationManager:
         self.chat_id = chat_id
     
     def send_message(self, content, summary):
+        logging.debug(f"Attempting to send Telegram message. USE_TELEGRAM: {self.use_telegram}, Bot Token: {'Set' if self.bot_token else 'Not Set'}, Chat ID: {self.chat_id}")
         if self.use_telegram:
             try:
-                asyncio.run(self.async_send_message(content))
-                logging.info(f"Telegram消息发送成功: {summary}")
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(self.async_send_message(content, summary))
+                else:
+                    loop.run_until_complete(self.async_send_message(content, summary))
             except Exception as e:
                 logging.error(f"发送Telegram消息时出错: {str(e)}", exc_info=True)
-
-    async def async_send_message(self, content):
+        else:
+            logging.info("Telegram功能未启用，跳过发送消息。")
+            
+    async def async_send_message(self, content, summary):
         bot = telegram.Bot(self.bot_token)
         await bot.send_message(chat_id=self.chat_id, text=content, parse_mode='HTML')
+        logging.info(f"Telegram消息发送成功: {summary}")
 
 class LinuxDoBrowser:
     def __init__(self) -> None:
@@ -138,6 +145,9 @@ class LinuxDoBrowser:
         return random.choice(messages)
 
     def login(self) -> bool:
+        logging.info(f"USE_TELEGRAM: {USE_TELEGRAM}")
+        logging.info(f"TELEGRAM_BOT_TOKEN: {'Set' if TELEGRAM_BOT_TOKEN else 'Not Set'}")
+        logging.info(f"TELEGRAM_CHAT_ID: {TELEGRAM_CHAT_ID}")
         try:
             logging.info("尝试登录...")
             self.page.click(".login-button .d-button-label")
@@ -300,26 +310,30 @@ class LinuxDoBrowser:
             self.browser.close()
             self.pw.stop()
 
-            if USE_TELEGRAM:
-                elapsed_time = end_time - start_time
-                summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
-                
-                # 获取并转义日志内容
-                log_content = log_stream.getvalue()
-                escaped_log_content = html.escape(log_content)
-                html_log_content = f"<pre>{escaped_log_content}</pre>"
-                # 创建 HTML 格式的内容
-                content = (
-                    f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
-                    f"<b>账号:</b> {USERNAME}\n"
-                    f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                    f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                    f"<b>总耗时:</b> {elapsed_time}\n\n"
-                    f"<b>日志内容:</b>\n"
-                    f"{html_log_content}"
-                )
-                
-                self.notification_manager.send_message(content, summary)
+            try:
+                if USE_TELEGRAM:
+                    elapsed_time = end_time - start_time
+                    summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                    
+                    # 获取并转义日志内容
+                    log_content = log_stream.getvalue()
+                    escaped_log_content = html.escape(log_content)
+                    html_log_content = f"<pre>{escaped_log_content}</pre>"
+                    # 创建 HTML 格式的内容
+                    content
+             = (
+                        f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
+                        f"<b>账号:</b> {USERNAME}\n"
+                        f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                        f"<b>总耗时:</b> {elapsed_time}\n\n"
+                        f"<b>日志内容:</b>\n"
+                        f"{html_log_content}"
+                    )
+                    
+                    self.notification_manager.send_message(content, summary)
+            except Exception as e:
+                logging.error(f"发送Telegram最终报告时出错: {str(e)}", exc_info=True)
 
     def print_connect_info(self):
         try:
