@@ -36,8 +36,8 @@ jobs:
         REPLY_PROBABILITY: ${{ secrets.REPLY_PROBABILITY }}
         COLLECT_PROBABILITY: ${{ secrets.COLLECT_PROBABILITY }}
         MAX_TOPICS: ${{ secrets.MAX_TOPICS }}
-        USE_WXPUSHER: ${{ secrets.USE_WXPUSHER }}
-        APP_TOKEN: ${{ secrets.APP_TOKEN }}
-        TOPIC_ID: ${{ secrets.TOPIC_ID }}
+        USE_TELEGRAM: ${{ secrets.USE_TELEGRAM }}
+        TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
       run: |
         python main.py
