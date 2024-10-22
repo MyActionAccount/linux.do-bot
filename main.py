@@ -292,26 +292,26 @@ class LinuxDoBrowser:
             self.pw.stop()
 
             if USE_TELEGRAM:
-            elapsed_time = end_time - start_time
-            summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
-            
-            # 获取并转义日志内容
-            log_content = log_stream.getvalue()
-            escaped_log_content = html.escape(log_content)
-            html_log_content = f"<pre>{escaped_log_content}</pre>"
-            # 创建 HTML 格式的内容
-            content = (
-                f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
-                f"<b>账号:</b> {USERNAME}\n"
-                f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
-                f"<b>总耗时:</b> {elapsed_time}\n\n"
-                f"<b>日志内容:</b>\n"
-                f"{html_log_content}"
-            )
-            
-            telegram_notifier = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-            telegram_notifier.send_message(content, summary)
+                elapsed_time = end_time - start_time
+                summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+                
+                # 获取并转义日志内容
+                log_content = log_stream.getvalue()
+                escaped_log_content = html.escape(log_content)
+                html_log_content = f"<pre>{escaped_log_content}</pre>"
+                # 创建 HTML 格式的内容
+                content = (
+                    f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
+                    f"<b>账号:</b> {USERNAME}\n"
+                    f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                    f"<b>总耗时:</b> {elapsed_time}\n\n"
+                    f"<b>日志内容:</b>\n"
+                    f"{html_log_content}"
+                )
+                
+                telegram_notifier = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+                telegram_notifier.send_message(content, summary)
 
     def print_connect_info(self):
         try:
