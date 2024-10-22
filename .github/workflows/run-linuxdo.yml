@@ -5,7 +5,7 @@ on:
     branches:
       - main
   schedule:
-  #  - cron: '0 23 * * *'   对应UTC时间每天19:00，即北京时间每天03:00
+    - cron: '0 23 * * *'  # 对应UTC时间每天19:00，即北京时间每天03:00
   workflow_dispatch: # 允许手动触发
 
 jobs:
