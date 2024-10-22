@@ -25,7 +25,8 @@ jobs:
       run: |
         pip install playwright requests tabulate configparser
         playwright install
-
+        pip install python-telegram-bot
+        
     - name: Run script
       env:
         TZ: Asia/Shanghai  # 设置时区为中国时区
