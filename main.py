@@ -105,20 +105,40 @@ class NotificationManager:
         if self.use_telegram:
             try:
                 loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    loop.create_task(self.async_send_message(content, summary))
-                else:
-                    loop.run_until_complete(self.async_send_message(content, summary))
+                messages = self.split_long_message(content)
+                for i, message in enumerate(messages, 1):
+                    if loop.is_running():
+                        loop.create_task(self.async_send_message(message, f"{summary} (Part {i}/{len(messages)})"))
+                    else:
+                        loop.run_until_complete(self.async_send_message(message, f"{summary} (Part {i}/{len(messages)})"))
             except Exception as e:
                 logging.error(f"发送Telegram消息时出错: {str(e)}", exc_info=True)
         else:
             logging.info("Telegram功能未启用，跳过发送消息。")
             
     async def async_send_message(self, content, summary):
-        bot = telegram.Bot(self.bot_token)
-        await bot.send_message(chat_id=self.chat_id, text=content, parse_mode='HTML')
-        logging.info(f"Telegram消息发送成功: {summary}")
-
+        try:
+            bot = telegram.Bot(self.bot_token)
+            await bot.send_message(chat_id=self.chat_id, text=content, parse_mode='HTML')
+            logging.info(f"Telegram消息发送成功: {summary}")
+        except telegram.error.BadRequest as e:
+            logging.error(f"发送Telegram消息时出错 (BadRequest): {str(e)}")
+        except Exception as e:
+            logging.error(f"发送Telegram消息时出错: {str(e)}")
+        
+    def split_long_message(self, content, max_length=4000):
+        messages = []
+        current_message = ""
+        for line in content.split('\n'):
+            if len(current_message) + len(line) + 1 > max_length:
+                messages.append(current_message.strip())
+                current_message = line + '\n'
+            else:
+                current_message += line + '\n'
+        if current_message:
+            messages.append(current_message.strip())
+        return messages
+    
 class LinuxDoBrowser:
     def __init__(self) -> None:
         logging.info("启动 Playwright...")
@@ -145,9 +165,6 @@ class LinuxDoBrowser:
         return random.choice(messages)
 
     def login(self) -> bool:
-        logging.info(f"USE_TELEGRAM: {USE_TELEGRAM}")
-        logging.info(f"TELEGRAM_BOT_TOKEN: {'Set' if TELEGRAM_BOT_TOKEN else 'Not Set'}")
-        logging.info(f"TELEGRAM_CHAT_ID: {TELEGRAM_CHAT_ID}")
         try:
             logging.info("尝试登录...")
             self.page.click(".login-button .d-button-label")
@@ -303,6 +320,8 @@ class LinuxDoBrowser:
             self.logout()
         except Exception as e:
             logging.error(f"运行过程中出错: {e}")
+            login_message = f"Linux.do 运行过程中出错\n用户名: {USERNAME}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')\n 错误: {e}}"
+            self.notification_manager.send_message(login_message, "Linux.do 运行过程中出错")
         finally:
             end_time = datetime.now()
             logging.info(f"结束执行时间: {end_time.strftime('%Y-%m-%d %H:%M:%S')}")
@@ -316,9 +335,19 @@ class LinuxDoBrowser:
                     summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
                     
                     # 获取并转义日志内容
-                    log_content = log_stream.getvalue()
-                    escaped_log_content = html.escape(log_content)
-                    html_log_content = f"<pre>{escaped_log_content}</pre>"
+                    # 创建浏览和点赞信息的字符串
+                    browsed_info = f"一共浏览了 {browsed_count} 篇文章。\n"
+                    if browsed_count > 0:
+                        browsed_info += "--------------浏览的文章信息-----------------\n"
+                        browsed_info += tabulate(browsed_articles, headers="keys", tablefmt="pretty")
+                    
+                    liked_info = f"\n\n一共点赞了 {like_count} 篇文章。\n"
+                    if like_count > 0:
+                        liked_info += "--------------点赞的文章信息-----------------\n"
+                        liked_info += tabulate(liked_articles, headers="keys", tablefmt="pretty")
+                    
+                    # 合并信息
+                    article_info = browsed_info + liked_info
                     # 创建 HTML 格式的内容
                     content = (
                         f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
@@ -326,8 +355,7 @@ class LinuxDoBrowser:
                         f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                         f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
                         f"<b>总耗时:</b> {elapsed_time}\n\n"
-                        f"<b>日志内容:</b>\n"
-                        f"{html_log_content}"
+                        f"<b>文章信息:</b>\n<pre>{html.escape(article_info)}</pre>"
                     )
                     
                     self.notification_manager.send_message(content, summary)
