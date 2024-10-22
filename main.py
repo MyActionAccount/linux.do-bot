@@ -320,8 +320,7 @@ class LinuxDoBrowser:
                     escaped_log_content = html.escape(log_content)
                     html_log_content = f"<pre>{escaped_log_content}</pre>"
                     # 创建 HTML 格式的内容
-                    content
-             = (
+                    content = (
                         f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
                         f"<b>账号:</b> {USERNAME}\n"
                         f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
