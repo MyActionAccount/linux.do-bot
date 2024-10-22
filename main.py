@@ -151,7 +151,17 @@ class LinuxDoBrowser:
         self.page.goto(HOME_URL)
         logging.info("初始化完成。")
         self.notification_manager = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
-
+        self.browsed_count = 0
+        self.like_count = 0
+        self.browsed_articles = []
+        self.liked_articles = []
+        self.skip_articles = []
+        self.skip_count = 0
+        self.replied_articles = []
+        self.reply_count = 0
+        self.collected_articles = []
+        self.collect_count = 0
+    
     def load_messages(self, filename):
         """从指定的文件加载消息并返回消息列表。"""
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -207,17 +217,6 @@ class LinuxDoBrowser:
                 logging.info(f"处理主题数超过最大限制 {MAX_TOPICS}，仅处理前 {MAX_TOPICS} 个主题。")
                 topics = topics[:MAX_TOPICS]
 
-            skip_articles = []
-            skip_count = 0
-            browsed_articles = []
-            browsed_count = 0
-            liked_articles = []
-            like_count = 0
-            replied_articles = []
-            reply_count = 0
-            collected_articles = []
-            collect_count = 0
-
             for idx, topic in enumerate(topics):
 
                 article_title = topic.text_content().strip()
@@ -246,27 +245,27 @@ class LinuxDoBrowser:
                     # 访问文章页面
                     page.goto(article_url)
                     # 访问文章数累加
-                    browsed_count += 1
+                    self.browsed_count += 1
                     # 访问文章数信息记录
-                    browsed_articles.append({"title": article_title, "url": article_url})
+                    self.browsed_articles.append({"title": article_title, "url": article_url})
                     # 等待页面完全加载
                     time.sleep(3)  
                     # 随机滚动页面
                     self.visit_article_and_scroll(page)
                     if random.random() < LIKE_PROBABILITY:
                         self.click_like(page)
-                        liked_articles.append({"title": article_title, "url": article_url})
-                        like_count += 1
+                        self.liked_articles.append({"title": article_title, "url": article_url})
+                        self.like_count += 1
                     if random.random() < REPLY_PROBABILITY:
                         reply_message = self.click_reply(page)
                         if reply_message:
-                            replied_articles.append(
+                            self.replied_articles.append(
                                 {"title": article_title, "url": article_url, "reply": reply_message})
-                            reply_count += 1
+                            self.reply_count += 1
                     if random.random() < COLLECT_PROBABILITY:
                         self.click_collect(page)
-                        collected_articles.append({"title": article_title, "url": article_url})
-                        collect_count += 1
+                        self.collected_articles.append({"title": article_title, "url": article_url})
+                        self.collect_count += 1
 
                 except TimeoutError:
                     logging.warning(f"打开主题 ： {article_title} 超时，跳过该主题。")
@@ -276,34 +275,34 @@ class LinuxDoBrowser:
                     logging.info(f"已关闭第 {idx + 1}/{len(topics)} 个主题 ： {article_title} ...")
 
             # 打印跳过的文章信息
-            logging.info(f"一共跳过了 {skip_count} 篇文章。")
-            if skip_count > 0:
+            logging.info(f"一共跳过了 {self.skip_count} 篇文章。")
+            if self.skip_count > 0:
                 logging.info("--------------跳过的文章信息-----------------")
-                logging.info("\n%s",tabulate(skip_articles, headers="keys", tablefmt="pretty"))
+                logging.info("\n%s",tabulate(self.skip_articles, headers="keys", tablefmt="pretty"))
 
             # 打印浏览的文章信息
-            logging.info(f"一共浏览了 {browsed_count} 篇文章。")
-            if browsed_count > 0:
+            logging.info(f"一共浏览了 {self.browsed_count} 篇文章。")
+            if self.browsed_count > 0:
                 logging.info("--------------浏览的文章信息-----------------")
-                logging.info("\n%s",tabulate(browsed_articles, headers="keys", tablefmt="pretty"))
+                logging.info("\n%s",tabulate(self.browsed_articles, headers="keys", tablefmt="pretty"))
 
             # 打印点赞的文章信息
-            logging.info(f"一共点赞了 {like_count} 篇文章。")
-            if like_count > 0:
+            logging.info(f"一共点赞了 {self.like_count} 篇文章。")
+            if self.like_count > 0:
                 logging.info("--------------点赞的文章信息-----------------")
-                logging.info("\n%s",tabulate(liked_articles, headers="keys", tablefmt="pretty"))
+                logging.info("\n%s",tabulate(self.liked_articles, headers="keys", tablefmt="pretty"))
 
            # 打印回复的文章信息
-            logging.info(f"一共回复了 {reply_count} 篇文章。")
-            if reply_count > 0:
+            logging.info(f"一共回复了 {self.reply_count} 篇文章。")
+            if self.reply_count > 0:
                 logging.info("--------------回复的文章信息-----------------")
-                logging.info("\n%s",tabulate(replied_articles, headers="keys", tablefmt="pretty"))
+                logging.info("\n%s",tabulate(self.replied_articles, headers="keys", tablefmt="pretty"))
 
             # 打印加入书签的文章信息
-            logging.info(f"一共加入书签了 {collect_count} 篇文章。")
-            if collect_count > 0:
+            logging.info(f"一共加入书签了 {self.collect_count} 篇文章。")
+            if self.collect_count > 0:
                 logging.info("--------------加入书签的文章信息-----------------")
-                logging.info("\n%s", tabulate(collected_articles, headers="keys", tablefmt="pretty"))
+                logging.info("\n%s", tabulate(self.collected_articles, headers="keys", tablefmt="pretty"))
 
         except Exception as e:
             logging.error(f"处理主题时出错: {e}")
@@ -336,15 +335,15 @@ class LinuxDoBrowser:
                     
                     # 获取并转义日志内容
                     # 创建浏览和点赞信息的字符串
-                    browsed_info = f"一共浏览了 {browsed_count} 篇文章。\n"
-                    if browsed_count > 0:
+                    browsed_info = f"一共浏览了 {self.browsed_count} 篇文章。\n"
+                    if self.browsed_count > 0:
                         browsed_info += "--------------浏览的文章信息-----------------\n"
-                        browsed_info += tabulate(browsed_articles, headers="keys", tablefmt="pretty")
+                        browsed_info += tabulate(self.browsed_articles, headers="keys", tablefmt="pretty")
                     
-                    liked_info = f"\n\n一共点赞了 {like_count} 篇文章。\n"
+                    liked_info = f"\n\n一共点赞了 {self.like_count} 篇文章。\n"
                     if like_count > 0:
                         liked_info += "--------------点赞的文章信息-----------------\n"
-                        liked_info += tabulate(liked_articles, headers="keys", tablefmt="pretty")
+                        liked_info += tabulate(self.liked_articles, headers="keys", tablefmt="pretty")
                     
                     # 合并信息
                     article_info = browsed_info + liked_info
