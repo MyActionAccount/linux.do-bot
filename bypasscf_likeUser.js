@@ -30,7 +30,7 @@ if (fs.existsSync(".env.local")) {
 }
 
 // 读取以分钟为单位的运行时间限制
-const runTimeLimitMinutes = process.env.RUN_TIME_LIMIT_MINUTES || 20;
+const runTimeLimitMinutes = process.env.RUN_TIME_LIMIT_MINUTES || 5;
 
 // 将分钟转换为毫秒
 const runTimeLimitMillis = runTimeLimitMinutes * 60 * 1000;
@@ -45,12 +45,12 @@ const shutdownTimer = setTimeout(() => {
   process.exit(0); // 退出进程
 }, runTimeLimitMillis);
 
-const token = process.env.TELEGRAM_BOT_TOKEN;
-const chatId = process.env.TELEGRAM_CHAT_ID;
+const token = process.TELEGRAM_BOT_TOKEN;
+const chatId = process.TELEGRAM_CHAT_ID;
 const specificUser = process.env.SPECIFIC_USER;
 const maxConcurrentAccounts = 4; // 每批最多同时运行的账号数
-const usernames = process.env.USERNAMES.split(",");
-const passwords = process.env.PASSWORDS.split(",");
+const usernames = process.env.LINUXDO_USERNAME;
+const passwords = process.env.LINUXDO_PASSWORD;
 const loginUrl = process.env.WEBSITE || "https://linux.do"; //在GitHub action环境里它不能读取默认环境变量,只能在这里设置默认值
 const delayBetweenInstances = 5000;
 const totalAccounts = usernames.length; // 总的账号数
