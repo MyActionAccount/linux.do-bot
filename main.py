@@ -7,6 +7,8 @@ import platform
 import requests
 import html
 import io
+import telegram
+import asyncio
 from datetime import datetime
 from configparser import ConfigParser
 from tabulate import tabulate
@@ -69,9 +71,9 @@ REPLY_PROBABILITY = float(os.getenv("REPLY_PROBABILITY", config.get('settings', 
 COLLECT_PROBABILITY = float(os.getenv("COLLECT_PROBABILITY", config.get('settings', 'collect_probability', fallback='0.02')))
 HOME_URL = config.get('urls', 'home_url', fallback="https://linux.do/")
 CONNECT_URL = config.get('urls', 'connect_url', fallback="https://connect.linux.do/")
-USE_WXPUSHER = os.getenv("USE_WXPUSHER", config.get('wxpusher', 'use_wxpusher', fallback='false')).lower() == 'true'
-APP_TOKEN = os.getenv("APP_TOKEN", config.get('wxpusher', 'app_token', fallback=None))
-TOPIC_ID = os.getenv("TOPIC_ID", config.get('wxpusher', 'topic_id', fallback=None))
+USE_TELEGRAM = os.environ.get('USE_TELEGRAM', 'false').lower() == 'true'
+TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", config.get('telegram', 'bot_token', fallback=None))
+TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", config.get('telegram', 'chat_id', fallback=None))
 MAX_TOPICS = int(os.getenv("MAX_TOPICS", config.get('settings', 'max_topics', fallback='10')))
 
 # 检查必要配置
@@ -81,44 +83,32 @@ if not USERNAME:
     missing_configs.append("USERNAME")
 if not PASSWORD:
     missing_configs.append("PASSWORD")
-if USE_WXPUSHER and not APP_TOKEN:
-    missing_configs.append("APP_TOKEN")
-if USE_WXPUSHER and not TOPIC_ID:
-    missing_configs.append("TOPIC_ID")
+if USE_TELEGRAM and not TELEGRAM_BOT_TOKEN:
+    missing_configs.append("TELEGRAM_BOT_TOKEN")
+if USE_TELEGRAM and not TELEGRAM_CHAT_ID:
+    missing_configs.append("TELEGRAM_CHAT_ID")
 
 if missing_configs:
-    logging.error(f"缺少必要配置: {', '.join(missing_configs)}，请在环境变量或配置文件中设置。")
+    logging.error(f"缺少必要配置: {', '.join(missing_configs)},请在环境变量或配置文件中设置。")
     exit(1)
 
+async def send_telegram_message(message):
+    bot = telegram.Bot(TELEGRAM_BOT_TOKEN)
+    await bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message, parse_mode='HTML')
+    
 class NotificationManager:
-    def __init__(self, use_wxpusher, app_token, topic_id):
-        self.use_wxpusher = use_wxpusher
-        self.app_token = app_token
-        self.topic_id = topic_id
+    def __init__(self, use_telegram, bot_token, chat_id):
+        self.use_telegram = use_telegram
+        self.bot_token = bot_token
+        self.chat_id = chat_id
     
     def send_message(self, content, summary):
-        if self.use_wxpusher:
+        if self.use_telegram:
             try:
-                data = {
-                    "appToken": self.app_token,
-                    "content": content,
-                    "summary": summary,
-                    "contentType": 2,
-                    "topicIds": [self.topic_id],
-                    "verifyPayType": 0
-                }
-                # 使用单独的请求日志记录器来避免混淆
-                request_logger = logging.getLogger("request_logger")
-                request_logger.info("发送 wxpusher 消息...")
-                response = requests.post("https://wxpusher.zjiecode.com/api/send/message", json=data)
-
-                if response.status_code == 200:
-                    request_logger.info("wxpusher 消息发送成功")
-                else:
-                    request_logger.error(f"wxpusher 消息发送失败: {response.status_code}, {response.text}")
-                    
+                asyncio.get_event_loop().run_until_complete(send_telegram_message(content))
+                logging.info("Telegram消息发送成功")
             except Exception as e:
-                request_logger.error(f"发送 wxpusher 消息时出错: {e}")
+                logging.error(f"发送Telegram消息时出错: {e}")
 
 class LinuxDoBrowser:
     def __init__(self) -> None:
@@ -301,30 +291,27 @@ class LinuxDoBrowser:
             self.browser.close()
             self.pw.stop()
 
-            if USE_WXPUSHER:
-                elapsed_time = end_time - start_time
-                summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
-                
-                # 获取并转义日志内容
-                log_content = log_stream.getvalue()
-                escaped_log_content = html.escape(log_content)
-                html_log_content = f"<pre>{escaped_log_content}</pre>"
-
-                # 创建 HTML 格式的内容
-                content = (
-                    f"<h1>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</h1>"
-                    f"<br/><p style='color:red;'>"
-                    f"账号: {USERNAME}<br/>"
-                    f"开始执行时间: {start_time.strftime('%Y-%m-%d %H:%M:%S')}<br/>"
-                    f"结束执行时间: {end_time.strftime('%Y-%m-%d %H:%M:%S')}<br/>"
-                    f"总耗时: {elapsed_time}<br/>"
-                    f"</p>"
-                    f"<h2>日志内容</h2>"
-                    f"{html_log_content}"
-                )
-                
-                wx_pusher = NotificationManager(USE_WXPUSHER, APP_TOKEN, TOPIC_ID)
-                wx_pusher.send_message(content, summary)
+            if USE_TELEGRAM:
+            elapsed_time = end_time - start_time
+            summary = f"Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}"
+            
+            # 获取并转义日志内容
+            log_content = log_stream.getvalue()
+            escaped_log_content = html.escape(log_content)
+            html_log_content = f"<pre>{escaped_log_content}</pre>"
+            # 创建 HTML 格式的内容
+            content = (
+                f"<b>Linux.do保活脚本 {end_time.strftime('%Y-%m-%d %H:%M:%S')}</b>\n\n"
+                f"<b>账号:</b> {USERNAME}\n"
+                f"<b>开始执行时间:</b> {start_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"<b>结束执行时间:</b> {end_time.strftime('%Y-%m-%d %H:%M:%S')}\n"
+                f"<b>总耗时:</b> {elapsed_time}\n\n"
+                f"<b>日志内容:</b>\n"
+                f"{html_log_content}"
+            )
+            
+            telegram_notifier = NotificationManager(USE_TELEGRAM, TELEGRAM_BOT_TOKEN, TELEGRAM_CHAT_ID)
+            telegram_notifier.send_message(content, summary)
 
     def print_connect_info(self):
         try:
