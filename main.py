@@ -341,7 +341,7 @@ class LinuxDoBrowser:
                         browsed_info += tabulate(self.browsed_articles, headers="keys", tablefmt="pretty")
                     
                     liked_info = f"\n\n一共点赞了 {self.like_count} 篇文章。\n"
-                    if like_count > 0:
+                    if self.like_count > 0:
                         liked_info += "--------------点赞的文章信息-----------------\n"
                         liked_info += tabulate(self.liked_articles, headers="keys", tablefmt="pretty")
                     
