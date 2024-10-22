@@ -320,7 +320,7 @@ class LinuxDoBrowser:
             self.logout()
         except Exception as e:
             logging.error(f"运行过程中出错: {e}")
-            login_message = f"Linux.do 运行过程中出错\n用户名: {USERNAME}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')\n 错误: {e}}"
+            login_message = f"Linux.do 运行过程中出错\n用户名: {USERNAME}\n时间: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n错误: {e}"
             self.notification_manager.send_message(login_message, "Linux.do 运行过程中出错")
         finally:
             end_time = datetime.now()
