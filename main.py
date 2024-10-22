@@ -232,8 +232,8 @@ class LinuxDoBrowser:
                 is_pinned = parent_element.query_selector_all(".topic-statuses .pinned")
 
                 if is_pinned:
-                    skip_articles.append({"title": article_title, "url": article_url})
-                    skip_count += 1
+                    self.skip_articles.append({"title": article_title, "url": article_url})
+                    self.skip_count += 1
                     logging.info(f"跳过置顶的帖子：{article_title}")
                     continue
 
